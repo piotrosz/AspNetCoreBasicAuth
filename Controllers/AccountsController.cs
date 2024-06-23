@@ -1,5 +1,5 @@
 ﻿using System.Security.Claims;
-using AspNetCoreBasicAuth.Data;
+using AspNetCoreBasicAuth.Controllers.Models;
 using AspNetCoreBasicAuth.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,42 +11,39 @@ namespace AspNetCoreBasicAuth.Controllers;
 [ApiController]
 public class AccountsController : ControllerBase
 {
-    private readonly ApplicationDbContext _applicationDbContext;
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly IdentityService _identityService;
+    private readonly IdentityTokenService _identityTokenService;
 
     public AccountsController(
-        ApplicationDbContext applicationDbContext, 
         UserManager<IdentityUser> userManager, 
         SignInManager<IdentityUser> signInManager, 
         RoleManager<IdentityRole> roleManager, 
-        IdentityService identityService)
+        IdentityTokenService identityTokenService)
     {
-        _applicationDbContext = applicationDbContext;
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
-        _identityService = identityService;
+        _identityTokenService = identityTokenService;
     }
 
     [HttpPost]
     [Route("register")]
-    public async Task<IActionResult> Register(RegisterUser registerUser)
+    public async Task<IActionResult> Register(RegisterUserRequest registerUserRequest)
     {
-        var identity = new IdentityUser { Email = registerUser.Email, UserName = registerUser.Email };
-        var createdIdentity = await _userManager.CreateAsync(identity, registerUser.Password);
+        var identity = new IdentityUser { Email = registerUserRequest.Email, UserName = registerUserRequest.Email };
+        var createdIdentity = await _userManager.CreateAsync(identity, registerUserRequest.Password);
 
         var newClaims = new List<Claim>
         {
-            new("FirstName", registerUser.FirstName),
-            new("LastName", registerUser.LastName)
+            new("FirstName", registerUserRequest.FirstName),
+            new("LastName", registerUserRequest.LastName)
         };
 
         await _userManager.AddClaimsAsync(identity, newClaims);
 
-        if (registerUser.Role == Role.Administrator)
+        if (registerUserRequest.Role == Role.Administrator)
         {
             var role = await _roleManager.FindByNameAsync("Administrator");
             if (role == null)
@@ -59,7 +56,7 @@ public class AccountsController : ControllerBase
             newClaims.Add(new Claim(ClaimTypes.Role, "Administrator"));
         }
         
-        if(registerUser.Role == Role.User)
+        if(registerUserRequest.Role == Role.User)
         {
             var role = await _roleManager.FindByNameAsync("User");
             if (role == null)
@@ -80,19 +77,19 @@ public class AccountsController : ControllerBase
 
         claimsIdentity.AddClaims(newClaims);
 
-        var token = _identityService.CreateSecurityToken(claimsIdentity);
-        var response = new AuthenticationResult(_identityService.WriteToken(token));
+        var token = _identityTokenService.CreateSecurityToken(claimsIdentity);
+        var response = new AuthenticationResult(_identityTokenService.WriteToken(token));
         return Ok(response);
     }
 
     [HttpPost]
     [Route("login")]
-    public async Task<IActionResult> Login(LoginUser loginUser)
+    public async Task<IActionResult> Login(LoginUserRequest loginUserRequest)
     {
-        var user = await _userManager.FindByEmailAsync(loginUser.Email);
+        var user = await _userManager.FindByEmailAsync(loginUserRequest.Email);
         if (user is null) return BadRequest();
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, loginUser.Password, lockoutOnFailure: false);
+        var result = await _signInManager.CheckPasswordSignInAsync(user, loginUserRequest.Password, lockoutOnFailure: false);
         if (!result.Succeeded) return BadRequest("Could not sign in");
 
         var claims = await _userManager.GetClaimsAsync(user);
@@ -111,23 +108,8 @@ public class AccountsController : ControllerBase
             claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role));
         }
 
-        var token = _identityService.CreateSecurityToken(claimsIdentity);
-        var response = new AuthenticationResult(_identityService.WriteToken(token));
+        var token = _identityTokenService.CreateSecurityToken(claimsIdentity);
+        var response = new AuthenticationResult(_identityTokenService.WriteToken(token));
         return Ok(response);
     }
 }
-
-public enum Role
-{
-    Undefined = 0,
-    User = 1,
-    Administrator = 2
-    
-}
-
-public record RegisterUser(string Email, string Password, string FirstName, string LastName, Role Role);
-
-public record LoginUser(string Email, string Password);
-
-public record AuthenticationResult(string Token);
-

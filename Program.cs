@@ -10,8 +10,6 @@ var connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-//builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-
 //builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
 //    .AddEntityFrameworkStores<ApplicationDbContext>();
 
@@ -27,9 +25,17 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSwagger();
 
+builder.Services.AddAuthorization();
+
+// This way can add identity endpoints automatically, but here I add Register and Login
+// endpoints manually for learning purposes
+// -- builder.Services.AddIdentityApiEndpoints<IdentityUser>()
+// -- .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// This is custom extension method (not from Framework or package)
 builder.RegisterAuthentication();
 
-builder.Services.AddScoped<IdentityService>();
+builder.Services.AddScoped<IdentityTokenService>();
 
 var app = builder.Build();
 
@@ -39,6 +45,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// -- app.MapIdentityApi<IdentityUser>();
 
 app.UseHttpsRedirection();
 

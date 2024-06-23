@@ -7,12 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AspNetCoreBasicAuth.Services;
 
-public class IdentityService
+public sealed class IdentityTokenService
 {
     private readonly JwtSettings? _settings;
     private readonly byte[] _key;
 
-    public IdentityService(IOptions<JwtSettings> jwtOptions)
+    public IdentityTokenService(IOptions<JwtSettings> jwtOptions)
     {
         _settings = jwtOptions.Value;
         ArgumentNullException.ThrowIfNull(_settings);
