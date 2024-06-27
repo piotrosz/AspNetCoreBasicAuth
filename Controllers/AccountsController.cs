@@ -14,18 +14,18 @@ public class AccountsController : ControllerBase
     private readonly UserManager<IdentityUser> _userManager;
     private readonly SignInManager<IdentityUser> _signInManager;
     private readonly RoleManager<IdentityRole> _roleManager;
-    private readonly IdentityTokenService _identityTokenService;
+    private readonly IdentityTokenCreator _identityTokenCreator;
 
     public AccountsController(
         UserManager<IdentityUser> userManager, 
         SignInManager<IdentityUser> signInManager, 
         RoleManager<IdentityRole> roleManager, 
-        IdentityTokenService identityTokenService)
+        IdentityTokenCreator identityTokenCreator)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _roleManager = roleManager;
-        _identityTokenService = identityTokenService;
+        _identityTokenCreator = identityTokenCreator;
     }
 
     [HttpPost]
@@ -43,30 +43,32 @@ public class AccountsController : ControllerBase
 
         await _userManager.AddClaimsAsync(identity, newClaims);
 
+        const string administratorRoleName = "Administrator";
         if (registerUserRequest.Role == Role.Administrator)
         {
-            var role = await _roleManager.FindByNameAsync("Administrator");
+            var role = await _roleManager.FindByNameAsync(administratorRoleName);
             if (role == null)
             {
-                role = new IdentityRole("Administrator");
+                role = new IdentityRole(administratorRoleName);
                 await _roleManager.CreateAsync(role);
             }
 
-            await _userManager.AddToRoleAsync(identity, "Administrator");
-            newClaims.Add(new Claim(ClaimTypes.Role, "Administrator"));
+            await _userManager.AddToRoleAsync(identity, administratorRoleName);
+            newClaims.Add(new Claim(ClaimTypes.Role, administratorRoleName));
         }
         
+        const string userRoleName = "User";
         if(registerUserRequest.Role == Role.User)
         {
-            var role = await _roleManager.FindByNameAsync("User");
+            var role = await _roleManager.FindByNameAsync(userRoleName);
             if (role == null)
             {
-                role = new IdentityRole("User");
+                role = new IdentityRole(userRoleName);
                 await _roleManager.CreateAsync(role);
             }
 
-            await _userManager.AddToRoleAsync(identity, "User");
-            newClaims.Add(new Claim(ClaimTypes.Role, "User"));
+            await _userManager.AddToRoleAsync(identity, userRoleName);
+            newClaims.Add(new Claim(ClaimTypes.Role, userRoleName));
         }
 
         var claimsIdentity = new ClaimsIdentity(new Claim[]
@@ -77,9 +79,8 @@ public class AccountsController : ControllerBase
 
         claimsIdentity.AddClaims(newClaims);
 
-        var token = _identityTokenService.CreateSecurityToken(claimsIdentity);
-        var response = new AuthenticationResult(_identityTokenService.WriteToken(token));
-        return Ok(response);
+        var token = _identityTokenCreator.CreateToken(claimsIdentity);
+        return Ok(new AuthenticationResult(token));
     }
 
     [HttpPost]
@@ -108,8 +109,7 @@ public class AccountsController : ControllerBase
             claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, role));
         }
 
-        var token = _identityTokenService.CreateSecurityToken(claimsIdentity);
-        var response = new AuthenticationResult(_identityTokenService.WriteToken(token));
-        return Ok(response);
+        var token = _identityTokenCreator.CreateToken(claimsIdentity);
+        return Ok( new AuthenticationResult(token));
     }
 }

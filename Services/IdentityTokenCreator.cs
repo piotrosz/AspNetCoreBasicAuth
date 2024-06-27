@@ -7,12 +7,12 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace AspNetCoreBasicAuth.Services;
 
-public sealed class IdentityTokenService
+public sealed class IdentityTokenCreator
 {
     private readonly JwtSettings? _settings;
     private readonly byte[] _key;
 
-    public IdentityTokenService(IOptions<JwtSettings> jwtOptions)
+    public IdentityTokenCreator(IOptions<JwtSettings> jwtOptions)
     {
         _settings = jwtOptions.Value;
         ArgumentNullException.ThrowIfNull(_settings);
@@ -24,20 +24,22 @@ public sealed class IdentityTokenService
 
     private static JwtSecurityTokenHandler TokenHandler => new();
 
-    public SecurityToken CreateSecurityToken(ClaimsIdentity identity)
+    public string CreateToken(ClaimsIdentity identity)
+    {
+        var tokenDescriptor = GetTokenDescriptor(identity);
+        var token = TokenHandler.CreateToken(tokenDescriptor);
+        return TokenHandler.WriteToken(token);
+    }
+
+    private SecurityToken CreateSecurityToken(ClaimsIdentity identity)
     {
         var tokenDescriptor = GetTokenDescriptor(identity);
         return TokenHandler.CreateToken(tokenDescriptor);
     }
 
-    public string WriteToken(SecurityToken token)
-    {
-        return TokenHandler.WriteToken(token);
-    }
-
     private SecurityTokenDescriptor GetTokenDescriptor(ClaimsIdentity identity)
     {
-        return new SecurityTokenDescriptor()
+        return new SecurityTokenDescriptor
         {
             Subject = identity,
             Expires = DateTime.Now.AddHours(2),

@@ -35,7 +35,7 @@ builder.Services.AddAuthorization();
 // This is custom extension method (not from Framework or package)
 builder.RegisterAuthentication();
 
-builder.Services.AddScoped<IdentityTokenService>();
+builder.Services.AddScoped<IdentityTokenCreator>();
 
 var app = builder.Build();
 
